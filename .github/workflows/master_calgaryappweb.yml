@@ -1,0 +1,51 @@
+# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+
+name: Build and deploy container app to Azure Web App - calgaryappweb
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: 'ubuntu-latest'
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+
+    - name: Log in to registry
+      uses: docker/login-action@v1
+      with:
+        registry: https://calgaryappweb.azurewebsites.net/
+        username: ${{ secrets.AzureAppService_ContainerUsername_a3ed3cca3dad45e59c8dee5e89ca6296 }}
+        password: ${{ secrets.AzureAppService_ContainerPassword_ead77459f09b430596073269832a93bd }}
+
+    - name: Build and push container image to registry
+      uses: docker/build-push-action@v2
+      with:
+        push: true
+        tags: calgaryappweb.azurewebsites.net/${{ secrets.AzureAppService_ContainerUsername_a3ed3cca3dad45e59c8dee5e89ca6296 }}/appsvc/staticsite:${{ github.sha }}
+        file: ./Dockerfile
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: 'production'
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+
+    steps:
+    - name: Deploy to Azure Web App
+      id: deploy-to-webapp
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: 'calgaryappweb'
+        slot-name: 'production'
+        publish-profile: ${{ secrets.AzureAppService_PublishProfile_f88bb3907fad46a9ad56f43aba783ca2 }}
+        images: 'calgaryappweb.azurewebsites.net/${{ secrets.AzureAppService_ContainerUsername_a3ed3cca3dad45e59c8dee5e89ca6296 }}/appsvc/staticsite:${{ github.sha }}'
